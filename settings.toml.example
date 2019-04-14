@@ -1,0 +1,29 @@
+# StackStatus configuration file:
+#   [accounts] section specifies the Slack accounts this app works on (via legacy tokens)
+#   [status.xxx] sectonss specify all the status configurations that this app supports.
+
+# Get your tokens here: https://api.slack.com/custom-integrations/legacy-tokens
+[accounts]
+slack_account_1 = "xoxp-token-1"
+slack_account_2 = "xoxp-token-2"
+
+# Statuses configuration. `emoji` and `text` are mandatory, `duration` is optional. If specified, it sets the status
+# for this number of minutes.
+[status.clear]
+emoji = ""
+text = ""
+
+[status.lunch]
+emoji = ":hamburger:"
+text = "Lunch"
+duration = 60
+
+[status.call]
+emoji = ":phone:"
+text = "In a call"
+duration = 60
+
+[status.brb]
+emoji = ":brb:"
+text = "BRB"
+duration = 60
