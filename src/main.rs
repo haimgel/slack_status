@@ -1,9 +1,11 @@
 extern crate slack_api as slack;
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::process::exit;
-use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use dirs::home_dir;
 use docopt::Docopt;
 use serde::Deserialize;
 use serde_json::json;
@@ -49,9 +51,11 @@ fn set_status(token :&str, status :&SlackStatus) ->
 }
 
 fn read_settings(status_name :&str) -> Result<AppSettings, Box<Error>> {
+    let mut settings_path = home_dir().unwrap();
+    settings_path.push(".slack_status");
     let mut cfg = config::Config::default();
     cfg
-        .merge(config::File::with_name("settings"))?
+        .merge(config::File::from(settings_path))?
         .merge(config::Environment::with_prefix("APP"))?;
 
     let mut accounts :HashMap<String, String> = HashMap::new();
@@ -107,11 +111,17 @@ fn main() {
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
     if args.flag_version {
-        print!("slack_status (ss) v{:?}", VERSION);
+        println!("slack_status v{}", VERSION);
         exit(1);
     }
 
-    let app_settings = read_settings(&args.arg_status).unwrap();
+    let app_settings = match read_settings(&args.arg_status) {
+         Ok(t) => t,
+         Err(e) => {
+             eprintln!("ERROR: {}", e);
+             exit(1);
+         }
+     };
 
     for (account, token) in app_settings.accounts {
         print!("Setting status {:?} for account {:?}: ",

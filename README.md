@@ -11,7 +11,7 @@ This will set yourself away for an hour, with an hamburger emoji and "Lunch" sta
 
 ### How to use
 
-1. Copy `settings.toml.example` to `settings.toml` and edit it to your liking.
+1. Copy `settings.toml.example` to `~/.settings.toml` and edit it to your liking.
 2. Have [rust](https://www.rust-lang.org/) installed.
 3. Compile this application: `cargo build --release`
 4. Copy `./target/release/slack_status` and `settings.toml` somewhere convenient. 
