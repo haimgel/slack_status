@@ -10,17 +10,29 @@ use docopt::Docopt;
 use serde::Deserialize;
 use serde_json::json;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 struct SlackStatus {
     emoji: String,
     text: String,
     duration: Option<u64>
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 struct AppSettings {
-    status: SlackStatus,
+    status: HashMap<String, SlackStatus>,
     accounts: HashMap<String, String>
+}
+
+impl AppSettings {
+    pub fn new() -> Result<Self, config::ConfigError> {
+        let mut settings_path = home_dir().unwrap();
+        settings_path.push(".slack_status");
+        let mut cfg = config::Config::default();
+        cfg
+            .merge(config::File::from(settings_path))?
+            .merge(config::Environment::with_prefix("APP"))?;
+        cfg.try_into()
+    }
 }
 
 fn set_status(token :&str, status :&SlackStatus) ->
@@ -50,51 +62,18 @@ fn set_status(token :&str, status :&SlackStatus) ->
     Ok(response?.profile.unwrap())
 }
 
-fn read_settings(status_name :&str) -> Result<AppSettings, Box<Error>> {
-    let mut settings_path = home_dir().unwrap();
-    settings_path.push(".slack_status");
-    let mut cfg = config::Config::default();
-    cfg
-        .merge(config::File::from(settings_path))?
-        .merge(config::Environment::with_prefix("APP"))?;
-
-    let mut accounts :HashMap<String, String> = HashMap::new();
-    for (acc_name, token_value) in cfg.get_table("accounts")? {
-        accounts.insert(acc_name, token_value.into_str()?);
-    }
-
-    let status_table = cfg
-        .get_table("status")?
-        .get(status_name)
-        .ok_or("Status not found in the configuration")?
-        .clone().into_table()?;
-    let emoji = status_table
-        .get("emoji")
-        .ok_or("Status emoji is required")?
-        .clone().into_str()?;
-    let text = status_table
-        .get("text")
-        .ok_or("Status text is required")?
-        .clone().into_str()?;
-    let duration = if status_table.contains_key("duration") {
-        Some(status_table.get("duration").unwrap().clone().into_int()? as u64)
-    } else {
-        None
-    };
-    let status = SlackStatus { emoji, text, duration };
-    Ok(AppSettings { accounts, status })
-}
-
 const USAGE: &'static str = "
 Set Slack status message/emoji/expiration. Edit settings.toml to configure.
 
 Usage:
-  ss <status>
-  ss (-h | --help)
-  ss --version
+  slack_status <status>
+  slack_status (-h | --help)
+  slack_status --list
+  slack_status --version
 
 Options:
   -h --help     Show this screen.
+  -l --list     List available statuses
   --version     Show version.
 ";
 
@@ -102,6 +81,7 @@ Options:
 struct Args {
     arg_status: String,
     flag_version: bool,
+    flag_list: bool
 }
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -112,23 +92,30 @@ fn main() {
         .unwrap_or_else(|e| e.exit());
     if args.flag_version {
         println!("slack_status v{}", VERSION);
-        exit(1);
+        exit(0);
     }
 
-    let app_settings = match read_settings(&args.arg_status) {
-         Ok(t) => t,
-         Err(e) => {
-             eprintln!("ERROR: {}", e);
-             exit(1);
-         }
-     };
+    let app_settings = AppSettings::new().unwrap_or_else( |e| {
+        eprintln!("Configuration file error: {}.", e);
+        exit(1)
+    });
+
+    if args.flag_list {
+        println!("Supported statuses: {:?}", app_settings.status.keys());
+        exit(0)
+    }
+
+    let status = app_settings.status.get(&args.arg_status).unwrap_or_else( ||{
+        eprintln!("Error: cannot find status {:?} in the configuration file.", &args.arg_status);
+        exit(1)
+    });
 
     for (account, token) in app_settings.accounts {
         print!("Setting status {:?} for account {:?}: ",
-                 app_settings.status.text, account);
-        match set_status(&token, &app_settings.status) {
+                 status.text, account);
+        match set_status(&token, status) {
             Ok(_profile) => println!("OK"),
-            Err(e) => println!("Error: {:?}", e)
+            Err(e) => println!("Slack API error: {}", e)
         }
     }
 }
