@@ -35,6 +35,18 @@ impl AppSettings {
     }
 }
 
+fn get_status(token: &str) -> Result<String, Box<Error>> {
+    let client = slack::default_client()?;
+
+    let request = slack::users_profile::GetRequest {
+        user: None,
+        include_labels: None,
+    };
+    let response = slack::users_profile::get(
+        &client, &token, &request);
+    Ok(response?.profile.ok_or("User profile was not returned")?.status_text.unwrap_or_default())
+}
+
 fn set_status(token :&str, status :&SlackStatus) ->
         Result<slack::UserProfile, Box<Error>> {
     let client = slack::default_client()?;
@@ -59,17 +71,17 @@ fn set_status(token :&str, status :&SlackStatus) ->
     };
     let response = slack::users_profile::set(
         &client, &token, &request);
-    Ok(response?.profile.unwrap())
+    Ok(response?.profile.ok_or("User profile was not returned")?)
 }
 
 const USAGE: &'static str = "
-Set Slack status message/emoji/expiration. Edit settings.toml to configure.
+Set Slack status message/emoji/expiration. Edit ~/.slack_status.toml to configure.
 
 Usage:
-  slack_status <status>
-  slack_status (-h | --help)
+  slack_status [--get] <status>
   slack_status --list
   slack_status --version
+  slack_status (-h | --help)
 
 Options:
   -h --help     Show this screen.
@@ -80,7 +92,7 @@ Options:
 #[derive(Debug, Deserialize)]
 struct Args {
     arg_status: String,
-    flag_version: bool,
+    flag_get: bool,
     flag_list: bool
 }
 
@@ -88,12 +100,8 @@ const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.deserialize())
+        .and_then(|d| d.version(Some(String::from(VERSION))).deserialize())
         .unwrap_or_else(|e| e.exit());
-    if args.flag_version {
-        println!("slack_status v{}", VERSION);
-        exit(0);
-    }
 
     let app_settings = AppSettings::new().unwrap_or_else( |e| {
         eprintln!("Configuration file error: {}.", e);
@@ -102,7 +110,7 @@ fn main() {
 
     if args.flag_list {
         println!("Supported statuses: {:?}", app_settings.status.keys());
-        exit(0)
+        exit(0);
     }
 
     let status = app_settings.status.get(&args.arg_status).unwrap_or_else( ||{
@@ -110,12 +118,37 @@ fn main() {
         exit(1)
     });
 
-    for (account, token) in app_settings.accounts {
-        print!("Setting status {:?} for account {:?}: ",
-                 status.text, account);
-        match set_status(&token, status) {
-            Ok(_profile) => println!("OK"),
-            Err(e) => println!("Slack API error: {}", e)
+    if args.flag_get {
+        let (account, token) = app_settings.accounts.into_iter().next()
+            .unwrap_or_else(|| {
+                println!("No accounts are defined!");
+                exit(2);
+            });
+
+        print!("Getting status for account {:?}: ", account);
+        exit(match get_status(&token) {
+            Ok(real_status) => {
+                println!("{}", real_status);
+                if status.text == real_status { 0 } else { 1 }
+            },
+            Err(e) => {
+                println!("Slack API error: {}", e);
+                2
+            }
+        });
+    } else {
+        let mut error_occurred = false;
+        for (account, token) in app_settings.accounts {
+            print!("Setting status {:?} for account {:?}: ",
+                   status.text, account);
+            match set_status(&token, status) {
+                Ok(_profile) => println!("OK"),
+                Err(e) => {
+                    println!("Slack API error: {}", e);
+                    error_occurred = true;
+                }
+            };
         }
+        exit(if error_occurred { 1 } else { 0 });
     }
 }
