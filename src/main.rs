@@ -14,13 +14,13 @@ use serde_json::json;
 struct SlackStatus {
     emoji: String,
     text: String,
-    duration: Option<u64>
+    duration: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]
 struct AppSettings {
     status: HashMap<String, SlackStatus>,
-    accounts: HashMap<String, String>
+    accounts: HashMap<String, String>,
 }
 
 impl AppSettings {
@@ -28,8 +28,7 @@ impl AppSettings {
         let mut settings_path = home_dir().unwrap();
         settings_path.push(".slack_status");
         let mut cfg = config::Config::default();
-        cfg
-            .merge(config::File::from(settings_path))?
+        cfg.merge(config::File::from(settings_path))?
             .merge(config::Environment::with_prefix("APP"))?;
         cfg.try_into()
     }
@@ -42,18 +41,20 @@ fn get_status(token: &str) -> Result<String, Box<Error>> {
         user: None,
         include_labels: None,
     };
-    let response = slack::users_profile::get(
-        &client, &token, &request);
-    Ok(response?.profile.ok_or("User profile was not returned")?.status_text.unwrap_or_default())
+    let response = slack::users_profile::get(&client, &token, &request);
+    Ok(response?
+        .profile
+        .ok_or("User profile was not returned")?
+        .status_text
+        .unwrap_or_default())
 }
 
-fn set_status(token :&str, status :&SlackStatus) ->
-        Result<slack::UserProfile, Box<Error>> {
+fn set_status(token: &str, status: &SlackStatus) -> Result<slack::UserProfile, Box<Error>> {
     let client = slack::default_client()?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let expiration = match status.duration {
         Some(duration) => now + duration * 60,
-        None => 0
+        None => 0,
     };
 
     // See https://api.slack.com/docs/presence-and-status for details about this endpoint
@@ -69,8 +70,7 @@ fn set_status(token :&str, status :&SlackStatus) ->
         name: None,
         value: None,
     };
-    let response = slack::users_profile::set(
-        &client, &token, &request);
+    let response = slack::users_profile::set(&client, &token, &request);
     Ok(response?.profile.ok_or("User profile was not returned")?)
 }
 
@@ -93,7 +93,7 @@ Options:
 struct Args {
     arg_status: String,
     flag_get: bool,
-    flag_list: bool
+    flag_list: bool,
 }
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -103,7 +103,7 @@ fn main() {
         .and_then(|d| d.version(Some(String::from(VERSION))).deserialize())
         .unwrap_or_else(|e| e.exit());
 
-    let app_settings = AppSettings::new().unwrap_or_else( |e| {
+    let app_settings = AppSettings::new().unwrap_or_else(|e| {
         eprintln!("Configuration file error: {}.", e);
         exit(1)
     });
@@ -113,24 +113,33 @@ fn main() {
         exit(0);
     }
 
-    let status = app_settings.status.get(&args.arg_status).unwrap_or_else( ||{
-        eprintln!("Error: cannot find status {:?} in the configuration file.", &args.arg_status);
-        exit(1)
-    });
+    let status = app_settings
+        .status
+        .get(&args.arg_status)
+        .unwrap_or_else(|| {
+            eprintln!(
+                "Error: cannot find status {:?} in the configuration file.",
+                &args.arg_status
+            );
+            exit(1)
+        });
 
     if args.flag_get {
-        let (account, token) = app_settings.accounts.into_iter().next()
-            .unwrap_or_else(|| {
-                println!("No accounts are defined!");
-                exit(2);
-            });
+        let (account, token) = app_settings.accounts.into_iter().next().unwrap_or_else(|| {
+            println!("No accounts are defined!");
+            exit(2);
+        });
 
         print!("Getting status for account {:?}: ", account);
         exit(match get_status(&token) {
             Ok(real_status) => {
                 println!("{}", real_status);
-                if status.text == real_status { 0 } else { 1 }
-            },
+                if status.text == real_status {
+                    0
+                } else {
+                    1
+                }
+            }
             Err(e) => {
                 println!("Slack API error: {}", e);
                 2
@@ -139,8 +148,10 @@ fn main() {
     } else {
         let mut error_occurred = false;
         for (account, token) in app_settings.accounts {
-            print!("Setting status {:?} for account {:?}: ",
-                   status.text, account);
+            print!(
+                "Setting status {:?} for account {:?}: ",
+                status.text, account
+            );
             match set_status(&token, status) {
                 Ok(_profile) => println!("OK"),
                 Err(e) => {
