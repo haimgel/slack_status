@@ -74,7 +74,7 @@ fn set_status(token: &str, status: &SlackStatus) -> Result<slack::UserProfile, B
     Ok(response?.profile.ok_or("User profile was not returned")?)
 }
 
-const USAGE: &'static str = "
+const USAGE: &str = "
 Set Slack status message/emoji/expiration. Edit ~/.slack_status.toml to configure.
 
 Usage:
@@ -96,7 +96,7 @@ struct Args {
     flag_list: bool,
 }
 
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
