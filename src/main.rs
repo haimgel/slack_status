@@ -1,9 +1,10 @@
-use std::process::exit;
 use docopt::Docopt;
 use serde::Deserialize;
+use std::process::exit;
 
-mod slack_api;
 mod settings;
+mod slack_api;
+mod tokens;
 
 const USAGE: &str = "
 Set Slack status message/emoji/expiration. Edit ~/.slack_status.toml to configure.

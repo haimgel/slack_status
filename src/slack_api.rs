@@ -1,6 +1,7 @@
+use crate::tokens;
 use serde::Deserialize;
 use serde_json::json;
-use slack_api as slack;
+use slack_api::sync as slack;
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -11,7 +12,8 @@ pub struct SlackStatus {
     pub duration: Option<u64>,
 }
 
-pub fn get_status(token: &str) -> Result<String, Box<dyn Error>> {
+pub fn get_status(token_or_url: &str) -> Result<String, Box<dyn Error>> {
+    let token = tokens::resolve(&token_or_url)?;
     let client = slack::default_client()?;
 
     let request = slack::users_profile::GetRequest {
@@ -26,7 +28,11 @@ pub fn get_status(token: &str) -> Result<String, Box<dyn Error>> {
         .unwrap_or_default())
 }
 
-pub fn set_status(token: &str, status: &SlackStatus) -> Result<slack::UserProfile, Box<dyn Error>> {
+pub fn set_status(
+    token_or_url: &str,
+    status: &SlackStatus,
+) -> Result<slack::UserProfile, Box<dyn Error>> {
+    let token = tokens::resolve(&token_or_url)?;
     let client = slack::default_client()?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let expiration = match status.duration {

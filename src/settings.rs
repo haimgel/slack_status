@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use dirs::home_dir;
 use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct AppSettings {
@@ -18,4 +18,3 @@ impl AppSettings {
         cfg.try_into()
     }
 }
-

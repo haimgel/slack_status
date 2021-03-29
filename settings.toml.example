@@ -1,11 +1,16 @@
 # StackStatus configuration file:
 #   [accounts] section specifies the Slack accounts this app works on (via legacy tokens)
-#   [status.xxx] sectonss specify all the status configurations that this app supports.
+#   [status.xxx] sections specify all the status configurations that this app supports.
 
 # Get your tokens here: https://api.slack.com/custom-integrations/legacy-tokens
+
+# Alternatively, if a legacy token is not available for your account, you could just specify the Slack workspace URL
+# and the app will attempt to get a short-lived token from a cookie you have in your browser. This currently works
+# only with Chrome on MacOS.
+
 [accounts]
 slack_account_1 = "xoxp-token-1"
-slack_account_2 = "xoxp-token-2"
+slack_account_2 = "https://my-workspace.slack.com"
 
 # Statuses configuration. `emoji` and `text` are mandatory, `duration` is optional. If specified, it sets the status
 # for this number of minutes.

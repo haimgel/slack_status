@@ -1,13 +1,18 @@
 [package]
 name = "slack_status"
-version = "1.0.0"
+version = "1.5.0"
 authors = ["Haim Gelfenbeyn <haim@g8n.me>"]
 edition = "2018"
 
 [dependencies]
-config = "0.9"
-dirs = "1"
-docopt = "1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1.0"
-slack_api = "0.21.0"
+anyhow = "^1"
+config = "^0"
+dirs = "^1"
+docopt = "^1"
+get-cookie = { git = "https://github.com/haimgel/get-cookie.git", branch = "main" }
+regex = "^1"
+reqwest = { version = "^0.11", features = ["blocking", "cookies", "native-tls"] }
+serde = { version = "^1", features = ["derive"] }
+serde_json = "^1"
+slack_api = { version = "^0", features = ["sync", "reqwest_blocking"] }
+url = "^2"
