@@ -4,19 +4,26 @@ use regex::Regex;
 use std::sync::Arc;
 use url::{ParseError, Url};
 
+pub struct TokenAndCookie {
+    pub token: String,
+    pub d_cookie: Option<String>,
+}
+
 /// Resolve a token or Slack team URL to an actual token
-pub fn resolve(token_or_url: &str) -> Result<String> {
+pub fn resolve(token_or_url: &str) -> Result<TokenAndCookie> {
     if token_or_url.starts_with("https://") {
         token_for_team(token_or_url)
     } else {
-        Ok(String::from(token_or_url))
+        Ok(TokenAndCookie {
+            token: String::from(token_or_url),
+            d_cookie: None,
+        })
     }
 }
 
 /// Get a token from a team URL (using local browsers' cookies)
-fn token_for_team(team_url: &str) -> Result<String> {
+fn token_for_team(team_url: &str) -> Result<TokenAndCookie> {
     let cookie_str = get_cookie(".slack.com", "d")?;
-    //let cookie_str = "DIwR2ESX2yAcDrgRYcTJVkekoyuWN4lfOPXnrds4TRvp%2B6NnmV8GZSIjdZMZuP1RVXIk04RUE46IepbmoAz2nM0Yw9BwcoG3lqp%2FZ6zn62M5WCUWI2HCppvqSLNNHpzgla4yEive2gJ5VcBGbncZSmqDlbUmckm72jyejHrl6uxKz4RO5xeQL3Be";
 
     let jar = reqwest::cookie::Jar::default();
     jar.add_cookie_str(
@@ -24,9 +31,10 @@ fn token_for_team(team_url: &str) -> Result<String> {
         &Url::parse("https://slack.com/").unwrap(),
     );
 
+    // Slack _needs_ user agent pretending to be Chrome, otherwise it does not give back a token
     let client = reqwest::blocking::Client::builder()
         .cookie_provider(Arc::new(jar))
-        .user_agent(format!("slack_status/{}", env!("CARGO_PKG_VERSION")))
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36")
         /*
         // To test requests and responses in Charles Proxy
         .danger_accept_invalid_certs(true)
@@ -46,5 +54,8 @@ fn token_for_team(team_url: &str) -> Result<String> {
         .and_then(|captures| captures.get(1))
         .ok_or_else(|| Error::msg("No token in the scraped page"))?;
 
-    Ok(String::from(find.as_str()))
+    Ok(TokenAndCookie {
+        token: String::from(find.as_str()),
+        d_cookie: Some(cookie_str),
+    })
 }

@@ -1,3 +1,4 @@
+use crate::slack_api_client;
 use crate::tokens;
 use serde::Deserialize;
 use serde_json::json;
@@ -13,14 +14,15 @@ pub struct SlackStatus {
 }
 
 pub fn get_status(token_or_url: &str) -> Result<String, Box<dyn Error>> {
-    let token = tokens::resolve(&token_or_url)?;
-    let client = slack::default_client()?;
+    let token_and_cookie = tokens::resolve(&token_or_url)?;
+    let client =
+        slack_api_client::build_client(token_and_cookie.d_cookie.as_ref().map(String::as_str))?;
 
     let request = slack::users_profile::GetRequest {
         user: None,
         include_labels: None,
     };
-    let response = slack::users_profile::get(&client, &token, &request);
+    let response = slack::users_profile::get(&client, &token_and_cookie.token, &request);
     Ok(response?
         .profile
         .ok_or("User profile was not returned")?
@@ -32,8 +34,10 @@ pub fn set_status(
     token_or_url: &str,
     status: &SlackStatus,
 ) -> Result<slack::UserProfile, Box<dyn Error>> {
-    let token = tokens::resolve(&token_or_url)?;
-    let client = slack::default_client()?;
+    let token_and_cookie = tokens::resolve(&token_or_url)?;
+    let client =
+        slack_api_client::build_client(token_and_cookie.d_cookie.as_ref().map(String::as_str))?;
+
     let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let expiration = match status.duration {
         Some(duration) => now + duration * 60,
@@ -53,6 +57,6 @@ pub fn set_status(
         name: None,
         value: None,
     };
-    let response = slack::users_profile::set(&client, &token, &request);
+    let response = slack::users_profile::set(&client, &token_and_cookie.token, &request);
     Ok(response?.profile.ok_or("User profile was not returned")?)
 }

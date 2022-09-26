@@ -11,7 +11,7 @@ This will set yourself away for an hour, with an hamburger emoji and "Lunch" sta
 
 ### How to use
 
-1. Copy `slack_status.toml.example` to `~/.slack_status.toml` and edit it to your liking.
+1. Copy `settings.toml.example` to `~/.slack_status.toml` and edit it to your liking.
 1. Have [rust](https://www.rust-lang.org/) installed.
 1. Compile this application: `cargo build --release`
 1. Sign the binary to prevent constant access prompts: it accesses your Keychain to decrypt Chrome cookies:

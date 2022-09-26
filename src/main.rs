@@ -4,6 +4,7 @@ use std::process::exit;
 
 mod settings;
 mod slack_api;
+mod slack_api_client;
 mod tokens;
 
 const USAGE: &str = "

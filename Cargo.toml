@@ -1,6 +1,6 @@
 [package]
 name = "slack_status"
-version = "1.5.0"
+version = "1.6.0"
 authors = ["Haim Gelfenbeyn <haim@g8n.me>"]
 edition = "2018"
 
